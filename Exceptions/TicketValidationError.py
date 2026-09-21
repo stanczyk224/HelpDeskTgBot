@@ -1,0 +1,2 @@
+class TicketValidationError(Exception):
+    pass
