@@ -16,7 +16,13 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(nullable=False)
     job_title: Mapped[str] = mapped_column(nullable=False)
     cabinet: Mapped[str] = mapped_column(nullable=False)
-    role: Mapped[Role] = mapped_column(Enum(Role),nullable=False)
-    tickets: Mapped[list["Ticket"]] = relationship(back_populates="user")
+    role: Mapped[Role] = mapped_column(Enum(Role), nullable=False)
 
+    tickets: Mapped[list["Ticket"]] = relationship(
+        "Ticket",
+        foreign_keys="[Ticket.user_id]",
+        back_populates="author"
+    )
 
+    def __repr__(self) -> str:
+        return f"<User id={self.id} full_name={self.full_name!r} role={self.role}>"

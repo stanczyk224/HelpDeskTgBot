@@ -16,5 +16,18 @@ class Ticket(Base):
     description: Mapped[str] = mapped_column(nullable=False)
     photo_id: Mapped[str] = mapped_column(nullable=True)
     status: Mapped[Status] = mapped_column(Enum(Status), nullable=False)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"),nullable=False)
-    user: Mapped["User"] = relationship(back_populates="tickets")
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    assigned_admin_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+    author: Mapped["User"] = relationship(
+        "User",
+        foreign_keys=[user_id],
+        back_populates="tickets"
+    )
+    assigned_admin: Mapped["User | None"] = relationship(
+        "User",
+        foreign_keys=[assigned_admin_id]
+    )
+
+    def __repr__(self) -> str:
+        return f"<Ticket id={self.id} title={self.title!r} status={self.status} user_id={self.user_id}>"

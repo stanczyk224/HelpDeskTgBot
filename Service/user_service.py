@@ -3,6 +3,7 @@ from Enums.role_enum import Role
 from Models.user_model import User
 from Repositories import user_repository
 from Utils import validators
+from Service.access_control import ensure_is_admin
 
 
 def register_user(session, full_name: str, job_title: str, cabinet: str, role: Role):
@@ -27,25 +28,28 @@ def register_user(session, full_name: str, job_title: str, cabinet: str, role: R
         cabinet=cabinet,
         role=role
     )
-    user_repository.create_user(session, user)
+    user_repository.create_user(session=session, user=user)
 
 
-def promote_to_admin(session, user_id: int):
-    user = user_repository.find_user_by_user_id(session, user_id)
+def promote_to_admin(session,actor: User, user_id: int):
+    ensure_is_admin(actor)
+    user = user_repository.find_user_by_user_id(session=session, user_id=user_id)
     if user is None:
         raise UserValidationError("User not found")
-    user_repository.edit_role(session, Role.admin, user_id)
+    user_repository.edit_role(session=session, role=Role.admin, user_id=user_id)
 
 
-def demote_to_user(session, user_id: int):
-    user = user_repository.find_user_by_user_id(session, user_id)
+def demote_to_user(session, actor: User, user_id: int):
+    ensure_is_admin(actor)
+    user = user_repository.find_user_by_user_id(session=session, user_id=user_id)
     if user is None:
         raise UserValidationError("User not found")
-    user_repository.edit_role(session, Role.user, user_id)
+    user_repository.edit_role(session=session, role=Role.user, user_id=user_id)
 
 
-def remove_user(session, user_id: int):
-    user = user_repository.find_user_by_user_id(session, user_id)
+def remove_user(session, actor: User, user_id: int):
+    ensure_is_admin(actor)
+    user = user_repository.find_user_by_user_id(session=session, user_id=user_id)
     if user is None:
         raise UserValidationError("User not found")
-    user_repository.delete_user_by_id(session, user_id)
+    user_repository.delete_user_by_id(session=session, user_id=user_id)
