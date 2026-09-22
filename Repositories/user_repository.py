@@ -18,6 +18,10 @@ def delete_user_by_id(session,user_id: int) -> bool:
     return True
 
 # FIND
+def find_all_users(session):
+    stmt = select(User)
+    return session.execute(stmt).scalars().all()
+
 def find_user_by_user_id(session,user_id):
     stmt = select(User).where(User.id == user_id)
     return session.execute(stmt).scalar_one_or_none()
