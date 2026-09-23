@@ -6,7 +6,7 @@ from Utils import validators
 from Service.access_control import ensure_is_admin
 
 
-def register_user(session, full_name: str, job_title: str, cabinet: str, role: Role):
+def register_user(session,telegram_id: int, full_name: str, job_title: str, cabinet: str, role: Role):
     if not validators.is_not_empty(full_name):
         raise UserValidationError("Full name cannot be empty")
     if not validators.has_no_digits(full_name):
@@ -23,12 +23,13 @@ def register_user(session, full_name: str, job_title: str, cabinet: str, role: R
         raise UserValidationError("Cabinet cannot be empty")
 
     user = User(
+        telegram_id=telegram_id,
         full_name=full_name,
         job_title=job_title,
         cabinet=cabinet,
         role=role
     )
-    user_repository.create_user(session=session, user=user)
+    return user_repository.create_user(session=session, user=user)
 
 
 def promote_to_admin(session,actor: User, user_id: int):

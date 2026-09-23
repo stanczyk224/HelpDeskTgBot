@@ -13,6 +13,7 @@ class User(Base):
     __tablename__ = 'users'
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    telegram_id: Mapped[int] = mapped_column(unique=True, nullable=False)
     full_name: Mapped[str] = mapped_column(nullable=False)
     job_title: Mapped[str] = mapped_column(nullable=False)
     cabinet: Mapped[str] = mapped_column(nullable=False)
@@ -25,4 +26,4 @@ class User(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<User id={self.id} full_name={self.full_name!r} role={self.role}>"
+        return f"<User id={self.id} telegram_id={self.telegram_id} full_name={self.full_name!r} role={self.role}>"

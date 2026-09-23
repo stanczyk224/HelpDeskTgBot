@@ -7,6 +7,7 @@ from Models.user_model import User
 def create_user(session:Session,user: User):
     session.add(user)
     session.commit()
+    return user
 
 # DELETE
 def delete_user_by_id(session,user_id: int) -> bool:
@@ -26,9 +27,17 @@ def find_user_by_user_id(session,user_id):
     stmt = select(User).where(User.id == user_id)
     return session.execute(stmt).scalar_one_or_none()
 
+def find_user_by_telegram_id(session, telegram_id: int):
+    stmt = select(User).where(User.telegram_id == telegram_id)
+    return session.execute(stmt).scalar_one_or_none()
+
 def find_user_by_full_name(session,full_name):
     stmt = select(User).where(User.full_name == full_name)
     return session.execute(stmt).scalar_one_or_none()
+
+def find_users_by_role(session, role: Role):
+    stmt = select(User).where(User.role == role)
+    return session.execute(stmt).scalars().all()
 
 # EDIT
 def edit_full_name(session,new_full_name,user_id:int) -> bool:

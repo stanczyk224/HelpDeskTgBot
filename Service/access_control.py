@@ -1,3 +1,5 @@
+from aiogram.types import Message
+
 from Enums.status_enum import Status
 from Models.ticket_model import Ticket
 from Models.user_model import User
@@ -28,3 +30,6 @@ def ensure_can_edit_ticket(actor: User, ticket: Ticket) -> None:
         raise AccessDeniedError("You can only edit your own tickets")
     if ticket.status != Status.open:
         raise AccessDeniedError("You can only edit tickets that are still open")
+def ensure_is_ticket_author(actor: User, ticket: Ticket) -> None:
+    if ticket.user_id != actor.id:
+        raise AccessDeniedError("You can only cancel your own tickets")

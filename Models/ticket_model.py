@@ -1,4 +1,5 @@
-from sqlalchemy import ForeignKey, Enum
+from datetime import datetime
+from sqlalchemy import ForeignKey, Enum, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import TYPE_CHECKING
 
@@ -16,6 +17,7 @@ class Ticket(Base):
     description: Mapped[str] = mapped_column(nullable=False)
     photo_id: Mapped[str] = mapped_column(nullable=True)
     status: Mapped[Status] = mapped_column(Enum(Status), nullable=False)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     assigned_admin_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
 
