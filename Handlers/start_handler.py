@@ -16,6 +16,12 @@ router = Router()
 async def start_handler(message: Message, actor, state: FSMContext):
     if actor is not None:
         await message.answer(f"Привет, {actor.full_name}! Ты уже зарегистрирован.")
+        await message.answer("""
+        /menu - чтоб вызвать меню
+        /new_ticket - чтоб создать задачу
+        /close_ticket {номер} - чтоб закрыть задачу
+        /help - список команд
+        """)
         return
 
     await message.answer("Добро пожаловать! Как тебя зовут? (ФИО)")

@@ -116,3 +116,4 @@ async def process_photo(message: Message, state: FSMContext, actor, session, bot
         ticket_notification_repository.create_notification(
             session, ticket_id=ticket.id, chat_id=sent.chat.id, message_id=sent.message_id, kind=NotificationKind.admin
         )
+

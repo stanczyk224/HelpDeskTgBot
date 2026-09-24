@@ -1,7 +1,9 @@
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from Enums.role_enum import Role
 from Models.user_model import User
+
+from Models.ticket_notification_model import TicketNotification
 
 # CREATE
 def create_user(session:Session,user: User):
@@ -18,10 +20,46 @@ def delete_user_by_id(session,user_id: int) -> bool:
     session.commit()
     return True
 
+def delete_user_with_tickets(session, user: User):
+    for ticket in user.tickets:
+
+        notifications = session.execute(
+            select(TicketNotification).where(
+                TicketNotification.ticket_id == ticket.id
+            )
+        ).scalars().all()
+
+        for notification in notifications:
+            session.delete(notification)
+
+        session.delete(ticket)
+
+    session.delete(user)
+    session.commit()
+
 # FIND
 def find_all_users(session):
     stmt = select(User)
     return session.execute(stmt).scalars().all()
+
+def find_users_page(
+        session,
+        page: int,
+        per_page: int = 10
+):
+    offset = (page - 1) * per_page
+
+    stmt = (
+        select(User)
+        .order_by(User.id)
+        .offset(offset)
+        .limit(per_page)
+    )
+    return session.execute(stmt).scalars().all()
+
+def count_users(session):
+    stmt = select(func.count()).select_from(User)
+    return session.execute(stmt).scalar_one()
 
 def find_user_by_user_id(session,user_id):
     stmt = select(User).where(User.id == user_id)
