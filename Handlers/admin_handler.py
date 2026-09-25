@@ -1,5 +1,5 @@
 from aiogram import Router, F
-from aiogram.filters import Command
+from aiogram.filters import Command, CommandObject
 from aiogram.types import Message, CallbackQuery
 from sqlalchemy.orm import Session
 
@@ -9,6 +9,7 @@ from Keyboards.list_users_keyboard import (
     users_list_keyboard,
     user_keyboard,
 )
+from Models.user_model import User
 from Service import user_service
 from Service.access_control import ensure_is_admin
 
@@ -18,11 +19,48 @@ router = Router()
 USERS_PER_PAGE = 10
 
 
+@router.message(Command("ban_user"))
+async def ban_user_handler(
+        message: Message,
+        command: CommandObject,
+        actor: User,
+        session: Session
+):
+    if actor is None:
+        await message.answer("❌ Пользователь не найден.")
+        return
+
+    if command.args is None:
+        await message.delete()
+        await message.answer("Использование: /ban_user {ID}")
+        return
+    try:
+        user_id = int(command.args)
+    except ValueError:
+        await message.delete()
+        await message.answer("Использование: /ban_user {ID}")
+        return
+    try:
+        user_service.remove_user_by_id(
+            session=session,
+            actor=actor,
+            user_id=user_id
+        )
+    except AccessDeniedError as e:
+        await message.answer(str(e))
+        return
+    except UserValidationError as e:
+        await message.answer(str(e))
+
+    await message.answer(f"User {command.args} has been eliminated")
+
+
+
 # ============================================================
 # /all_users
 # ============================================================
 
-@router.message(Command("all_users"))
+@router.message(Command("users"))
 async def all_users_handler(
     message: Message,
     session: Session
@@ -41,7 +79,7 @@ async def all_users_handler(
             session=session,
             actor=actor,
             page=1,
-            per_page=USERS_PER_PAGE,
+            per_page=USERS_PER_PAGE
         )
     except AccessDeniedError:
         await message.answer(
@@ -384,7 +422,7 @@ async def delete_user_handler(
         return
 
     try:
-        user_service.remove_user(
+        user_service.remove_user_by_id(
             session=session,
             actor=actor,
             user_id=user_id,

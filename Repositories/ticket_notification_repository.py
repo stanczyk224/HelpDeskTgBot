@@ -14,13 +14,10 @@ def create_notification(session, ticket_id: int, chat_id: int, message_id: int, 
     session.commit()
     return notification
 
-
 def find_by_ticket_id(session, ticket_id: int):
     stmt = select(TicketNotification).where(TicketNotification.ticket_id == ticket_id)
     return session.execute(stmt).scalars().all()
 
-
 def delete_by_ticket_id(session, ticket_id: int):
     stmt = delete(TicketNotification).where(TicketNotification.ticket_id == ticket_id)
     session.execute(stmt)
-    session.commit()

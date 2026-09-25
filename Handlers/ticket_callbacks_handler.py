@@ -1,145 +1,271 @@
 from aiogram import Router, Bot, F
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup
+from aiogram.types import CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from sqlalchemy.orm import Session
 
+from Enums.status_enum import Status
 from Exceptions.AccessDeniedError import AccessDeniedError
 from Exceptions.TicketValidationError import TicketValidationError
-from Service import ticket_service
-from Repositories import ticket_notification_repository, ticket_repository
-from Enums.notification_kind_enum import NotificationKind
+from Handlers.ticket_handler import show_tickets_page
+from Keyboards.tickets_list_keyboard import ticket_keyboard
+from Models.ticket_model import Ticket
+from Models.user_model import User
+from Repositories.user_repository import find_user_by_user_id
+from Service import ticket_workflow_service
+from Service import ticket_service, access_control
+from bootstrap_admin import session
+
+TICKETS_PER_PAGE = 10
 
 router = Router()
 
-
-async def edit_all_notifications(
-    bot: Bot,
-    session,
-    ticket,
-    new_text: str,
-    keyboard_for: dict[int, InlineKeyboardMarkup] | None = None
+@router.callback_query(F.data.startswith("ticket:select:"))
+async def take_ticket_handler(
+        callback: CallbackQuery,
+        actor: User,
+        session: Session,
+        bot: Bot
 ):
-    notifications = ticket_notification_repository.find_by_ticket_id(session, ticket_id=ticket.id)
-    for notification in notifications:
-        keyboard = None
-        if keyboard_for and notification.chat_id in keyboard_for:
-            keyboard = keyboard_for[notification.chat_id]
-
-        try:
-            if ticket.photo_id:
-                await bot.edit_message_caption(
-                    chat_id=notification.chat_id,
-                    message_id=notification.message_id,
-                    caption=new_text,
-                    reply_markup=keyboard
-                )
-            else:
-                await bot.edit_message_text(
-                    chat_id=notification.chat_id,
-                    message_id=notification.message_id,
-                    text=new_text,
-                    reply_markup=keyboard
-                )
-        except Exception:
-            continue
-
-    return notifications
-
-
-@router.callback_query(F.data.startswith("take_ticket:"))
-async def take_ticket_handler(callback: CallbackQuery, actor, session, bot: Bot):
-    ticket_id = int(callback.data.split(":")[1])
+    print("TAKE HANDLER", callback.data)
+    parts = callback.data.split(":")
+    ticket_id = int(parts[2])
 
     try:
-        ticket_service.take_ticket_in_progress(session, actor=actor, ticket_id=ticket_id)
-    except AccessDeniedError:
-        await callback.answer("У тебя нет прав на это действие", show_alert=True)
+        await ticket_workflow_service.take_ticket(
+            bot=bot,
+            session=session,
+            actor=actor,
+            ticket_id=ticket_id
+        )
+    except AccessDeniedError as e:
+        await callback.answer(str(e), show_alert=True)
         return
     except TicketValidationError as e:
         await callback.answer(str(e), show_alert=True)
         return
-
-    ticket = ticket_repository.find_ticket_by_id(session, ticket_id=ticket_id)
-
-    new_text = (
-        f"🆕 Заявка #{ticket.id}\n"
-        f"Тема: {ticket.title}\n\n"
-        f"{ticket.description}\n\n"
-        f"Статус: 🔵 В работе (взял: {actor.full_name})"
-    )
-
-    close_keyboard = InlineKeyboardBuilder()
-    close_keyboard.button(text="✅ Закрыть заявку", callback_data=f"close_ticket:{ticket.id}")
-
-    notifications = await edit_all_notifications(
-        bot, session, ticket, new_text,
-        keyboard_for={actor.telegram_id: close_keyboard.as_markup()}
-    )
-
-    for notification in notifications:
-        if notification.kind == NotificationKind.author:
-            await bot.send_message(
-                chat_id=notification.chat_id,
-                text=f"{actor.full_name} взял вашу заявку #{ticket.id} в работу"
-            )
 
     await callback.answer("Взял в работу!")
 
 
-@router.callback_query(F.data.startswith("cancel_ticket:"))
-async def cancel_ticket_handler(callback: CallbackQuery, actor, session, bot: Bot):
-    ticket_id = int(callback.data.split(":")[1])
+@router.callback_query(F.data.startswith("ticket:cancel:"))
+async def cancel_ticket_handler(
+        callback: CallbackQuery,
+        actor: User,
+        session: Session,
+        bot: Bot
+):
+    parts = callback.data.split(":")
+    ticket_id = int(parts[2])
 
     try:
-        ticket_service.cancel_ticket(session, actor=actor, ticket_id=ticket_id)
-    except AccessDeniedError:
-        await callback.answer("Это не твоя заявка", show_alert=True)
+        await ticket_workflow_service.cancel_ticket(
+            bot=bot,
+            session=session,
+            actor=actor,
+            ticket_id=ticket_id
+        )
+    except AccessDeniedError as e:
+        await callback.answer(str(e), show_alert=True)
         return
     except TicketValidationError as e:
         await callback.answer(str(e), show_alert=True)
         return
 
-    ticket = ticket_repository.find_ticket_by_id(session, ticket_id=ticket_id)
-
-    new_text = (
-        f"🆕 Заявка #{ticket.id}\n"
-        f"Тема: {ticket.title}\n\n"
-        f"{ticket.description}\n\n"
-        f"Статус: ❌ Отменена автором"
-    )
-
-    await edit_all_notifications(bot, session, ticket, new_text)
     await callback.answer("Заявка отменена")
 
-
-@router.callback_query(F.data.startswith("close_ticket:"))
-async def close_ticket_handler(callback: CallbackQuery, actor, session, bot: Bot):
-    ticket_id = int(callback.data.split(":")[1])
+@router.callback_query(F.data.startswith("ticket:complete:"))
+async def complete_ticket_handler(
+        callback: CallbackQuery,
+        actor: User,
+        session: Session,
+        bot: Bot
+):
+    parts = callback.data.split(":")
+    ticket_id = int(parts[2])
 
     try:
-        ticket_service.close_ticket(session, actor=actor, ticket_id=ticket_id)
-    except AccessDeniedError:
-        await callback.answer("У тебя нет прав на это действие", show_alert=True)
+        await ticket_workflow_service.complete_ticket(
+            bot=bot,
+            session=session,
+            actor=actor,
+            ticket_id=ticket_id
+        )
+    except AccessDeniedError as e:
+        await callback.answer(str(e), show_alert=True)
         return
     except TicketValidationError as e:
         await callback.answer(str(e), show_alert=True)
         return
 
-    ticket = ticket_repository.find_ticket_by_id(session, ticket_id=ticket_id)
+    await callback.answer("Заявка завершена")
 
-    new_text = (
-        f"🆕 Заявка #{ticket.id}\n"
-        f"Тема: {ticket.title}\n\n"
-        f"{ticket.description}\n\n"
-        f"Статус: ✅ Закрыта (закрыл: {actor.full_name})"
+
+
+@router.callback_query(F.data.startswith("tickets:page:"))
+async def tickets_page_handler(
+        callback: CallbackQuery,
+        actor: User,
+        session: Session
+):
+    page = int(callback.data.split(":")[2])
+
+    if actor is None:
+        await callback.answer(
+            "❌ Пользователь не найден.",
+            show_alert=True
+        )
+        return
+
+    await show_tickets_page(
+        message=callback.message,
+        actor=actor,
+        session=session,
+        page=page
     )
 
-    notifications = await edit_all_notifications(bot, session, ticket, new_text)
+    await callback.answer()
 
-    for notification in notifications:
-        if notification.kind == NotificationKind.author:
-            await bot.send_message(
-                chat_id=notification.chat_id,
-                text=f"Ваша заявка #{ticket.id} закрыта"
-            )
 
-    await callback.answer("Заявка закрыта")
+@router.callback_query(F.data == "tickets:noop")
+async def tickets_noop_handler(
+        callback: CallbackQuery
+):
+    await callback.answer()
+
+
+@router.callback_query(F.data.regexp(r"^ticket:\d+:\d+$"))
+async def ticket_info_handler(
+        callback: CallbackQuery,
+        actor: User,
+        session: Session
+):
+    parts = callback.data.split(":")
+
+    ticket_id = int(parts[1])
+    page = int(parts[2])
+
+    if actor is None:
+        await callback.answer(
+            "❌ Пользователь не найден.",
+            show_alert=True,
+        )
+        return
+    ticket = ticket_service.get_ticket_by_id(
+        session=session,
+        ticket_id=ticket_id)
+
+    if ticket is None:
+        await callback.answer(
+            "Заявка не найдена",
+            show_alert=True
+        )
+        return
+
+    try:
+        access_control.ensure_can_view_ticket(
+            actor=actor,
+            ticket=ticket
+        )
+    except AccessDeniedError:
+        await callback.answer(
+            "Доступен просмотр только своих заявок",
+            show_alert=True
+        )
+        return
+    assigned_name = (
+        ticket.assigned_admin.full_name
+        if ticket.assigned_admin
+        else "Не назначен"
+    )
+
+    completed_name = (
+        ticket.completed_by_admin.full_name
+        if ticket.completed_by_admin
+        else "Не завершён"
+    )
+
+    if ticket.status == Status.open:
+        status = "🟢 Открыт"
+    elif ticket.status == Status.in_progress:
+        status = "🔵 В процессе"
+    else:
+        status = "🔴 Закрыт"
+
+    caption = f"""
+    Заявка
+
+    ID: {ticket.id}
+    Создатель: {ticket.author.full_name}
+    Кабинет: {ticket.author.cabinet}
+    Тема: {ticket.title}
+    Описание: {ticket.description}
+    Статус: {status}
+    Взял: {assigned_name}
+    Завершил: {completed_name}
+    """
+    await callback.message.edit_text(
+        text=caption,
+        reply_markup=ticket_keyboard(
+            ticket=ticket,
+            actor=actor,
+            page=page
+        )
+    )
+
+    await callback.answer()
+
+@router.callback_query(F.data == "ticket:photo_back")
+async def ticket_photo_back_handler(
+        callback: CallbackQuery
+):
+    await callback.message.delete()
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("ticket:photo:"))
+async def ticket_show_photo(
+        callback: CallbackQuery,
+        actor: User,
+        session: Session
+):
+
+    try:
+        ticket_id = int(callback.data.split(":")[2])
+    except ValueError:
+        await callback.answer("Ticket id must be int", show_alert=True)
+        return
+    try:
+        ticket = ticket_service.get_ticket_by_id(
+            session=session,
+            ticket_id=ticket_id
+        )
+        if ticket is None:
+            await callback.answer("Ticket has not been found!", show_alert=True)
+            return
+        access_control.ensure_can_view_ticket(
+            actor=actor,
+            ticket=ticket
+        )
+    except TicketValidationError as e:
+        await callback.answer(str(e), show_alert=True)
+        return
+    except AccessDeniedError as e:
+        await callback.answer(str(e), show_alert=True)
+        return
+
+
+    if ticket.photo_id is None:
+        await callback.answer("The ticket has no photo", show_alert=True)
+        return
+    photo_keyboard = InlineKeyboardBuilder()
+
+    photo_keyboard.button(
+        text="⬅️ Назад",
+        callback_data="ticket:photo_back"
+    )
+
+    await callback.message.answer_photo(
+        photo=ticket.photo_id,
+        reply_markup=photo_keyboard.as_markup()
+    )
+    await callback.answer()
+

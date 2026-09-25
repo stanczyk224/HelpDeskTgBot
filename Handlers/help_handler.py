@@ -12,18 +12,16 @@ async def help_command(message: Message, actor: User):
     user_help = """
     /menu - чтоб вызвать меню
     /new_ticket - чтоб создать задачу
-    /close_ticket {номер} - чтоб закрыть задачу
+    /ticket {действие} {номер}
     /help - список команд
     """
     admin_help = """
     /menu - чтоб вызвать меню
     /new_ticket - чтоб создать задачу
-    /close_ticket {номер} - чтоб закрыть задачу
+    /ticket {действие} {номер}
     /help - список команд
-    /all_users - список всех пользователей
+    /users - список всех пользователей
     /ban_user {tg_id} - удалить пользователя
-    /promote_user {tg_id} - повысить права пользователя
-    /demote_user {tg_id} - понизить права пользователя
     """
 
     if actor.role == actor.role.user:

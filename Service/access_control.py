@@ -33,3 +33,9 @@ def ensure_can_edit_ticket(actor: User, ticket: Ticket) -> None:
 def ensure_is_ticket_author(actor: User, ticket: Ticket) -> None:
     if ticket.user_id != actor.id:
         raise AccessDeniedError("You can only cancel your own tickets")
+def ensure_can_view_ticket(actor: User, ticket: Ticket) -> None:
+    if actor.role == Role.admin:
+        return
+    if ticket.user_id != actor.id:
+        raise AccessDeniedError("You can only see your own tickets")
+

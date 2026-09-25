@@ -1,20 +1,189 @@
 from aiogram import Router
-from aiogram.filters import Command
+from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 import os
 from aiogram import Bot
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from sqlalchemy.orm import Session
 
 from Enums.notification_kind_enum import NotificationKind
 from Enums.role_enum import Role
+from Exceptions.AccessDeniedError import AccessDeniedError
+from Keyboards.tickets_list_keyboard import tickets_list_keyboard
+from Models.user_model import User
 from Repositories import user_repository, ticket_repository, ticket_notification_repository
 from Exceptions.TicketValidationError import TicketValidationError
-from Service import ticket_service
+from Service import ticket_service, ticket_workflow_service
+from Service.access_control import ensure_is_admin, ensure_is_ticket_author
 from States.CreateTicketState import CreateTicketStates
 from Utils.telegram_helpers import require_text
 
 router = Router()
+
+TICKETS_PER_PAGE = 10
+
+async def show_tickets_page(
+        message: Message,
+        actor: User,
+        session: Session,
+        page: int
+):
+    tickets, total_tickets = ticket_service.get_tickets_page(
+        session=session,
+        actor=actor,
+        page=page,
+        per_page=TICKETS_PER_PAGE
+    )
+
+    total_pages = max(
+        1,
+        (total_tickets + TICKETS_PER_PAGE - 1) // TICKETS_PER_PAGE
+    )
+
+    if page > total_pages:
+        page = total_pages
+
+        tickets, total_tickets = ticket_service.get_tickets_page(
+            session=session,
+            actor=actor,
+            page=page,
+            per_page=TICKETS_PER_PAGE
+        )
+
+    await message.edit_text(
+        "Список заявок:",
+        reply_markup=tickets_list_keyboard(
+            tickets=tickets,
+            page=page,
+            total_pages=total_pages
+        )
+    )
+
+@router.message(Command("ticket"))
+async def ticket_command(
+        message: Message,
+        actor: User,
+        command: CommandObject,
+        session: Session,
+        bot: Bot
+):
+    if actor is None:
+        await message.answer("Пользователь не найден")
+        return
+
+    if not command.args:
+        await message.answer(
+            "Использование:\n"
+            "/ticket take ID\n"
+            "/ticket complete ID\n"
+            "/ticket close ID\n"
+            "/ticket cancel ID"
+        )
+        return
+
+    parts = command.args.split()
+
+    if len(parts) != 2:
+        await message.answer(
+            "Использование: /ticket <action> <ID>"
+        )
+        return
+
+    action = parts[0].lower()
+
+    try:
+        ticket_id = int(parts[1])
+    except ValueError:
+        await message.answer("ID тикета должен быть числом")
+        return
+
+    try:
+        if action == "take":
+            await ticket_workflow_service.take_ticket(
+                bot=bot,
+                session=session,
+                actor=actor,
+                ticket_id=ticket_id
+            )
+
+        elif action == "complete":
+            await ticket_workflow_service.complete_ticket(
+                bot=bot,
+                session=session,
+                actor=actor,
+                ticket_id=ticket_id
+            )
+
+        elif action == "close":
+            await ticket_workflow_service.close_ticket(
+                bot=bot,
+                session=session,
+                actor=actor,
+                ticket_id=ticket_id
+            )
+
+        elif action == "cancel":
+            await ticket_workflow_service.cancel_ticket(
+                bot=bot,
+                session=session,
+                actor=actor,
+                ticket_id=ticket_id
+            )
+
+        else:
+            await message.answer(
+                f"Неизвестное действие: {action}\n"
+                "Доступно: take, complete, close, cancel"
+            )
+            return
+
+    except AccessDeniedError as e:
+        await message.answer(str(e))
+        return
+
+    except TicketValidationError as e:
+        await message.answer(str(e))
+        return
+
+    await message.answer(
+        f"Операция `{action}` для тикета #{ticket_id} выполнена",
+        parse_mode="Markdown"
+    )
+
+
+
+@router.message(Command("tickets"))
+async def all_tickets_handler(
+        message: Message,
+        actor: User,
+        session: Session
+):
+
+    if actor is None:
+        await message.answer("Пользователь не найден")
+        return
+
+    tickets, total_tickets = ticket_service.get_tickets_page(
+        session=session,
+        actor=actor,
+        page=1,
+        per_page=TICKETS_PER_PAGE
+    )
+
+    total_pages = max(
+        1,
+        (total_tickets + TICKETS_PER_PAGE - 1) // TICKETS_PER_PAGE
+    )
+
+    await message.answer(
+        "Список заявок:",
+        reply_markup=tickets_list_keyboard(
+            tickets=tickets,
+            page=1,
+            total_pages=total_pages
+        )
+    )
 
 @router.message(Command("new_ticket"))
 async def new_ticket_handler(message: Message, actor, state: FSMContext):
@@ -109,7 +278,7 @@ async def process_photo(message: Message, state: FSMContext, actor, session, bot
         )
 
     admin_keyboard = InlineKeyboardBuilder()
-    admin_keyboard.button(text="✅ Взять в работу", callback_data=f"take_ticket:{ticket.id}")
+    admin_keyboard.button(text="✅ Взять в работу", callback_data=f"ticket:select:{ticket.id}")
     admins = user_repository.find_users_by_role(session, role=Role.admin)
     for admin in admins:
         sent = await send_ticket_notification(admin.telegram_id, keyboard=admin_keyboard.as_markup())

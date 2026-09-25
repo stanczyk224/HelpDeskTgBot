@@ -1,4 +1,3 @@
-# Middlewares/user_middleware.py
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
 from typing import Callable, Awaitable, Any

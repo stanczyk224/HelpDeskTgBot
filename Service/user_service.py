@@ -1,13 +1,53 @@
+from sqlalchemy.orm import Session
+
 from Enums.status_enum import Status
 from Exceptions.UserValidationError import UserValidationError
 from Enums.role_enum import Role
+from Models.ticket_model import Ticket
 from Models.user_model import User
 from Repositories import user_repository
+from Service import ticket_service
 from Utils import validators
 from Service.access_control import ensure_is_admin
 
+def remove_user_by_id(
+        session: Session,
+        actor: User,
+        user_id: int,
+):
+    ensure_is_admin(actor)
 
-def register_user(session,telegram_id: int, full_name: str, job_title: str, cabinet: str, role: Role):
+    tickets = ticket_service.get_ticket_by_user_id(
+        session=session,
+        user_id=user_id
+    )
+    for ticket in tickets:
+        if ticket.status == Status.open or ticket.status == Status.in_progress:
+            raise UserValidationError("User still has some unresolved tickets")
+        ticket_service.delete_ticket_by_id(
+            session=session,
+            actor=actor,
+            ticket_id=ticket.id)
+    user = user_repository.find_user_by_user_id(
+        session=session,
+        user_id=user_id
+    )
+
+    if user is None:
+        raise UserValidationError("User not found")
+
+    user_repository.delete_user_by_id(
+        session=session,
+        user_id=user_id)
+
+
+def register_user(
+        session,telegram_id: int,
+        full_name: str,
+        job_title: str,
+        cabinet: str,
+        role: Role
+):
     if not validators.is_not_empty(full_name):
         raise UserValidationError("Full name cannot be empty")
     if not validators.has_no_digits(full_name):
@@ -30,13 +70,15 @@ def register_user(session,telegram_id: int, full_name: str, job_title: str, cabi
         cabinet=cabinet,
         role=role
     )
-    return user_repository.create_user(session=session, user=user)
+    return user_repository.create_user(
+        session=session,
+        user=user)
 
 def get_users_page(
     session,
     actor: User,
     page: int,
-    per_page: int = 10,
+    per_page: int = 10
 ):
     ensure_is_admin(actor)
 
@@ -65,46 +107,26 @@ def get_user_by_id(session, user_id: int):
 
 def promote_to_admin(session,actor: User, user_id: int):
     ensure_is_admin(actor)
-    user = user_repository.find_user_by_user_id(session=session, user_id=user_id)
+    user = user_repository.find_user_by_user_id(
+        session=session,
+        user_id=user_id)
     if user is None:
         raise UserValidationError("User not found")
-    user_repository.edit_role(session=session, role=Role.admin, user_id=user_id)
+    user_repository.edit_role(
+        session=session,
+        role=Role.admin,
+        user_id=user_id)
 
 
 def demote_to_user(session, actor: User, user_id: int):
     ensure_is_admin(actor)
-    user = user_repository.find_user_by_user_id(session=session, user_id=user_id)
-    if user is None:
-        raise UserValidationError("User not found")
-    user_repository.edit_role(session=session, role=Role.user, user_id=user_id)
-
-
-def remove_user(session, actor: User, user_id: int):
-    ensure_is_admin(actor)
-
     user = user_repository.find_user_by_user_id(
         session=session,
-        user_id=user_id,
-    )
-
+        user_id=user_id)
     if user is None:
         raise UserValidationError("User not found")
-
-    # Проверяем открытые тикеты
-    open_tickets = [
-        ticket
-        for ticket in user.tickets
-        if ticket.status == Status.open
-    ]
-
-    if open_tickets:
-        raise UserValidationError(
-            "Сначала закройте все открытые тикеты пользователя"
-        )
-
-    # Все тикеты пользователя уже закрыты.
-    # Удаляем их, затем самого пользователя.
-    user_repository.delete_user_with_tickets(
+    user_repository.edit_role(
         session=session,
-        user=user,
-    )
+        role=Role.user,
+        user_id=user_id)
+
