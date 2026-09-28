@@ -23,6 +23,19 @@ router = Router()
 
 TICKETS_PER_PAGE = 10
 
+async def start_ticket_creation(
+        message: Message,
+        actor: User,
+        state: FSMContext
+):
+    if actor is None:
+        await message.answer("Сначала нужно зарегистрироваться — напиши /start")
+        return
+
+    await message.answer("Опиши тему заявки одной строкой")
+    await state.set_state(CreateTicketStates.waiting_for_title)
+
+
 async def show_tickets_page(
         message: Message,
         actor: User,
@@ -66,7 +79,8 @@ async def ticket_command(
         actor: User,
         command: CommandObject,
         session: Session,
-        bot: Bot
+        bot: Bot,
+        state: FSMContext
 ):
     if actor is None:
         await message.answer("Пользователь не найден")
@@ -75,6 +89,7 @@ async def ticket_command(
     if not command.args:
         await message.answer(
             "Использование:\n"
+            "/ticket create\n"
             "/ticket take ID\n"
             "/ticket complete ID\n"
             "/ticket close ID\n"
@@ -83,14 +98,27 @@ async def ticket_command(
         return
 
     parts = command.args.split()
+    action = parts[0].lower()
 
+    # Создание заявки
+    if action == "create":
+        if len(parts) != 1:
+            await message.answer("Использование: /ticket create")
+            return
+
+        await start_ticket_creation(
+            message=message,
+            actor=actor,
+            state=state
+        )
+        return
+
+    # Все остальные команды требуют ID
     if len(parts) != 2:
         await message.answer(
             "Использование: /ticket <action> <ID>"
         )
         return
-
-    action = parts[0].lower()
 
     try:
         ticket_id = int(parts[1])
@@ -134,7 +162,7 @@ async def ticket_command(
         else:
             await message.answer(
                 f"Неизвестное действие: {action}\n"
-                "Доступно: take, complete, close, cancel"
+                "Доступно: create, take, complete, close, cancel"
             )
             return
 
@@ -184,15 +212,6 @@ async def all_tickets_handler(
             total_pages=total_pages
         )
     )
-
-@router.message(Command("new_ticket"))
-async def new_ticket_handler(message: Message, actor, state: FSMContext):
-    if actor is None:
-        await message.answer("Сначала нужно зарегистрироваться — напиши /start")
-        return
-
-    await message.answer("Опиши тему заявки одной строкой")
-    await state.set_state(CreateTicketStates.waiting_for_title)
 
 @router.message(CreateTicketStates.waiting_for_title)
 async def process_title(message: Message, state: FSMContext):

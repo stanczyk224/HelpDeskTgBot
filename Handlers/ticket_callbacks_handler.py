@@ -1,4 +1,5 @@
 from aiogram import Router, Bot, F
+from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy.orm import Session
@@ -6,18 +7,28 @@ from sqlalchemy.orm import Session
 from Enums.status_enum import Status
 from Exceptions.AccessDeniedError import AccessDeniedError
 from Exceptions.TicketValidationError import TicketValidationError
-from Handlers.ticket_handler import show_tickets_page
+from Handlers.ticket_handler import show_tickets_page, start_ticket_creation
 from Keyboards.tickets_list_keyboard import ticket_keyboard
-from Models.ticket_model import Ticket
 from Models.user_model import User
-from Repositories.user_repository import find_user_by_user_id
 from Service import ticket_workflow_service
 from Service import ticket_service, access_control
-from bootstrap_admin import session
 
 TICKETS_PER_PAGE = 10
 
 router = Router()
+
+@router.callback_query(F.data == "ticket:create")
+async def create_ticket_callback(
+        callback: CallbackQuery,
+        actor: User,
+        state: FSMContext
+):
+    await start_ticket_creation(
+        callback.message,
+        actor,
+        state
+    )
+    await callback.answer()
 
 @router.callback_query(F.data.startswith("ticket:select:"))
 async def take_ticket_handler(
