@@ -62,7 +62,9 @@ async def process_job_title(message: Message, state: FSMContext):
 @router.message(
     F.chat.type == "private",
     RegistrationStates.waiting_for_cabinet)
-async def process_cabinet(message: Message, state: FSMContext,actor:User, session):
+async def process_cabinet(message: Message,
+                          state: FSMContext,
+                          actor: User, session):
     text = await require_text(message)
     if text is None:
         return
@@ -87,6 +89,5 @@ async def process_cabinet(message: Message, state: FSMContext,actor:User, sessio
 
     await state.clear()
     await message.answer(
-        "Готово, ты зарегистрирован!",
-        reply_markup=get_main_menu_keyboard(actor)
+        "Готово, ты зарегистрирован! /menu для вызова меню",
     )
