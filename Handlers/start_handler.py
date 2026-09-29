@@ -1,21 +1,28 @@
-from aiogram import Router
+from aiogram import Router, F
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from Enums.role_enum import Role
 from Exceptions.UserValidationError import UserValidationError
+from Models.user_model import User
 from Service import user_service
+from Service.keyboard_service import get_main_menu_keyboard
 from States.RegistrationState import RegistrationStates
 from Utils.telegram_helpers import require_text
 
 router = Router()
 
 
-@router.message(CommandStart())
+@router.message(
+    F.chat.type == "private",
+    CommandStart())
 async def start_handler(message: Message, actor, state: FSMContext):
     if actor is not None:
-        await message.answer(f"Привет, {actor.full_name}! Ты уже зарегистрирован.")
+        await message.answer(
+            f"Привет, {actor.full_name}! Ты уже зарегистрирован.",
+            reply_markup=get_main_menu_keyboard(actor)
+        )
         await message.answer("""
         /menu - чтоб вызвать меню
         /new_ticket - чтоб создать задачу
@@ -28,7 +35,9 @@ async def start_handler(message: Message, actor, state: FSMContext):
     await state.set_state(RegistrationStates.waiting_for_full_name)
 
 
-@router.message(RegistrationStates.waiting_for_full_name)
+@router.message(
+    F.chat.type == "private",
+    RegistrationStates.waiting_for_full_name)
 async def process_full_name(message: Message, state: FSMContext):
     text = await require_text(message)
     if text is None:
@@ -38,7 +47,9 @@ async def process_full_name(message: Message, state: FSMContext):
     await state.set_state(RegistrationStates.waiting_for_job_title)
 
 
-@router.message(RegistrationStates.waiting_for_job_title)
+@router.message(
+    F.chat.type == "private",
+    RegistrationStates.waiting_for_job_title)
 async def process_job_title(message: Message, state: FSMContext):
     text = await require_text(message)
     if text is None:
@@ -48,8 +59,10 @@ async def process_job_title(message: Message, state: FSMContext):
     await state.set_state(RegistrationStates.waiting_for_cabinet)
 
 
-@router.message(RegistrationStates.waiting_for_cabinet)
-async def process_cabinet(message: Message, state: FSMContext, session):
+@router.message(
+    F.chat.type == "private",
+    RegistrationStates.waiting_for_cabinet)
+async def process_cabinet(message: Message, state: FSMContext,actor:User, session):
     text = await require_text(message)
     if text is None:
         return
@@ -73,4 +86,7 @@ async def process_cabinet(message: Message, state: FSMContext, session):
         return
 
     await state.clear()
-    await message.answer("Готово, ты зарегистрирован!")
+    await message.answer(
+        "Готово, ты зарегистрирован!",
+        reply_markup=get_main_menu_keyboard(actor)
+    )

@@ -1,6 +1,6 @@
 from aiogram import Router, Bot, F
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, reply_markup_union
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy.orm import Session
 
@@ -12,6 +12,7 @@ from Keyboards.tickets_list_keyboard import ticket_keyboard
 from Models.user_model import User
 from Service import ticket_workflow_service
 from Service import ticket_service, access_control
+from Service.keyboard_service import get_main_menu_keyboard
 
 TICKETS_PER_PAGE = 10
 
@@ -29,6 +30,19 @@ async def create_ticket_callback(
         state
     )
     await callback.answer()
+
+@router.callback_query(F.data == "ticket:create:cancel")
+async def cancel_ticket_creation(
+    callback: CallbackQuery,
+    state: FSMContext
+):
+    await state.clear()
+
+    await callback.answer("Создание заявки отменено")
+
+    await callback.message.edit_text(
+        "❌ Создание заявки отменено."
+    )
 
 @router.callback_query(F.data.startswith("ticket:select:"))
 async def take_ticket_handler(
@@ -139,9 +153,16 @@ async def tickets_page_handler(
 
 @router.callback_query(F.data == "tickets:noop")
 async def tickets_noop_handler(
-        callback: CallbackQuery
+        callback: CallbackQuery,
+        actor: User
 ):
     await callback.answer()
+
+    await callback.message.answer(
+        text="Меню: ",
+        reply_markup=get_main_menu_keyboard(actor)
+    )
+
 
 
 @router.callback_query(F.data.regexp(r"^ticket:\d+:\d+$"))

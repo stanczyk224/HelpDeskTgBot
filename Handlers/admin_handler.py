@@ -12,14 +12,17 @@ from Keyboards.list_users_keyboard import (
 from Models.user_model import User
 from Service import user_service
 from Service.access_control import ensure_is_admin
-
+from Service.keyboard_service import get_main_menu_keyboard
 
 router = Router()
 
 USERS_PER_PAGE = 10
 
 
-@router.message(Command("ban_user"))
+@router.message(
+    F.chat.type == "private",
+    Command("ban_user")
+)
 async def ban_user_handler(
         message: Message,
         command: CommandObject,
@@ -60,7 +63,10 @@ async def ban_user_handler(
 # /all_users
 # ============================================================
 
-@router.message(Command("users"))
+@router.message(
+    F.chat.type == "private",
+    Command("users")
+)
 async def all_users_handler(
     message: Message,
     session: Session
@@ -173,8 +179,14 @@ async def users_page_handler(
 @router.callback_query(F.data == "users:noop")
 async def users_noop_handler(
     callback: CallbackQuery,
+        actor: User
 ):
     await callback.answer()
+
+    await callback.message.answer(
+        text="Меню: ",
+        reply_markup=get_main_menu_keyboard(actor)
+    )
 
 
 # ============================================================

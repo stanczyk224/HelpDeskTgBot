@@ -38,5 +38,13 @@ def main_menu_keyboard_admin() -> InlineKeyboardMarkup:
 
     return builder.as_markup()
 
+def cancel_ticket_creation_keyboard():
+    builder = InlineKeyboardBuilder()
 
+    builder.button(
+        text="❌ Отменить",
+        callback_data="ticket:create:cancel"
+    )
+
+    return builder.as_markup()
 

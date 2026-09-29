@@ -1,4 +1,4 @@
-from aiogram import Router
+from aiogram import Router, F
 from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from Enums.notification_kind_enum import NotificationKind
 from Enums.role_enum import Role
 from Exceptions.AccessDeniedError import AccessDeniedError
+from Keyboards.main_menu_keyboards import cancel_ticket_creation_keyboard
 from Keyboards.tickets_list_keyboard import tickets_list_keyboard
 from Models.user_model import User
 from Repositories import user_repository, ticket_repository, ticket_notification_repository
@@ -17,7 +18,7 @@ from Exceptions.TicketValidationError import TicketValidationError
 from Service import ticket_service, ticket_workflow_service
 from Service.access_control import ensure_is_admin, ensure_is_ticket_author
 from States.CreateTicketState import CreateTicketStates
-from Utils.telegram_helpers import require_text
+from Utils.telegram_helpers import require_text, ask
 
 router = Router()
 
@@ -32,7 +33,9 @@ async def start_ticket_creation(
         await message.answer("Сначала нужно зарегистрироваться — напиши /start")
         return
 
-    await message.answer("Опиши тему заявки одной строкой")
+    await ask(
+        message,"Опиши тему заявки одной строкой",
+    )
     await state.set_state(CreateTicketStates.waiting_for_title)
 
 
@@ -73,7 +76,9 @@ async def show_tickets_page(
         )
     )
 
-@router.message(Command("ticket"))
+@router.message(
+    F.chat.type == "private",
+    Command("ticket"))
 async def ticket_command(
         message: Message,
         actor: User,
@@ -181,7 +186,9 @@ async def ticket_command(
 
 
 
-@router.message(Command("tickets"))
+@router.message(
+    F.chat.type == "private",
+    Command("tickets"))
 async def all_tickets_handler(
         message: Message,
         actor: User,
@@ -213,13 +220,18 @@ async def all_tickets_handler(
         )
     )
 
-@router.message(CreateTicketStates.waiting_for_title)
+@router.message(
+    F.chat.type == "private",
+    CreateTicketStates.waiting_for_title)
 async def process_title(message: Message, state: FSMContext):
     text = await require_text(message)
     if text is None:
         return
     await state.update_data(title=text)
-    await message.answer("Опиши проблему подробнее")
+    await ask(
+        message,
+        "Опиши проблему подробнее",
+    )
     await state.set_state(CreateTicketStates.waiting_for_description)
 
 
@@ -229,17 +241,25 @@ async def process_description(message: Message, state: FSMContext):
     if text is None:
         return
     await state.update_data(description=text)
-    await message.answer("Прикрепи фото (или напиши «-», если фото нет)")
+    await ask(
+        message,
+        "Прикрепи фото (или напиши «-», если фото нет)",
+        )
     await state.set_state(CreateTicketStates.waiting_for_photo)
 
 
-@router.message(CreateTicketStates.waiting_for_photo)
+@router.message(
+    F.chat.type == "private",
+    CreateTicketStates.waiting_for_photo)
 async def process_photo(message: Message, state: FSMContext, actor, session, bot: Bot):
     photo_id = None
     if message.photo is not None:
         photo_id = message.photo[-1].file_id
     elif message.text != "-":
-        await message.answer("Пришли фото или напиши «-», если фото нет")
+        await ask(
+            message,
+            "Прикрепи фото (или напиши «-», если фото нет)",
+        )
         return
 
     data = await state.get_data()
@@ -253,7 +273,10 @@ async def process_photo(message: Message, state: FSMContext, actor, session, bot
             photo_id=photo_id
         )
     except TicketValidationError as e:
-        await message.answer(f"Ошибка: {e}\n\nПопробуй ещё раз. Опиши тему заявки одной строкой")
+        await ask(
+            message,
+            f"Ошибка: {e}\n\nПопробуй ещё раз. Опиши тему заявки одной строкой",
+        )
         await state.set_state(CreateTicketStates.waiting_for_title)
         return
 
