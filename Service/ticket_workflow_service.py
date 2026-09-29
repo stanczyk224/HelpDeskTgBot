@@ -24,8 +24,13 @@ async def close_ticket(
         ticket_id=ticket_id
     )
 
+    author: User = user_repository.find_user_by_user_id(
+        session=session,
+        user_id=ticket.user_id)
+
     text = (
         f"🆕 Заявка #{ticket.id}\n"
+        f"Автор: {author.full_name}\n"
         f"Тема: {ticket.title}\n\n"
         f"{ticket.description}\n\n"
         f"Статус: ✅ Закрыта (закрыл: {actor.full_name})"
@@ -59,8 +64,13 @@ async def take_ticket(
         ticket_id=ticket_id
     )
 
+    author: User = user_repository.find_user_by_user_id(
+        session=session,
+        user_id=ticket.user_id)
+
     text = (
         f"🆕 Заявка #{ticket.id}\n"
+        f"Автор: {author.full_name}\n"
         f"Тема: {ticket.title}\n\n"
         f"{ticket.description}\n\n"
         f"Статус: 🔵 В работе (взял: {actor.full_name})"
@@ -103,8 +113,13 @@ async def cancel_ticket(
         ticket_id=ticket_id
     )
 
+    author: User = user_repository.find_user_by_user_id(
+        session=session,
+        user_id=ticket.user_id)
+
     text = (
         f"🆕 Заявка #{ticket.id}\n"
+        f"Автор: {author.full_name}\n"
         f"Тема: {ticket.title}\n\n"
         f"{ticket.description}\n\n"
         f"Статус: ❌ Отменена автором"
@@ -237,9 +252,13 @@ async def complete_ticket(
         ticket_id=ticket_id
     )
 
+    author: User = user_repository.find_user_by_user_id(
+        session=session,
+        user_id=ticket.user_id)
 
     text = (
         f"🆕 Заявка #{ticket.id}\n"
+        f"Автор: {author.full_name}\n"
         f"Тема: {ticket.title}\n\n"
         f"{ticket.description}\n\n"
         f"Статус: ✅ Завершена\n"

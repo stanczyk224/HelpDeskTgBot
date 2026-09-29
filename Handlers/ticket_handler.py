@@ -306,10 +306,14 @@ async def process_photo(message: Message, state: FSMContext, actor, session, bot
             )
 
     author_keyboard = InlineKeyboardBuilder()
-    author_keyboard.button(text="Отменить заявку", callback_data=f"cancel_ticket:{ticket.id}")
+    author_keyboard.button(text="Отменить заявку",
+                           callback_data=f"ticket:cancel:{ticket.id}")
     sent = await send_ticket_notification(message.chat.id, keyboard=author_keyboard.as_markup())
     ticket_notification_repository.create_notification(
-        session, ticket_id=ticket.id, chat_id=sent.chat.id, message_id=sent.message_id, kind=NotificationKind.author
+        session, ticket_id=ticket.id,
+        chat_id=sent.chat.id,
+        message_id=sent.message_id,
+        kind=NotificationKind.author
     )
 
     group_chat_id = os.getenv("GROUP_CHAT_ID")
