@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import os
-import sys
+import logger
 
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher
@@ -11,24 +11,7 @@ from Middlewares.user_middleware import UserMiddleware
 from Handlers import main_router
 from Jobs.cleanup import cleanup_old_tickets_loop
 
-file_handler = logging.FileHandler(
-    filename="Logs/bot.log",
-    mode="a",
-    encoding="utf-8",
-    delay=True)
-file_handler.setLevel(logging.DEBUG)
-
-stream_handler = logging.StreamHandler(stream=sys.stdout)
-stream_handler.setLevel(logging.INFO)
-
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.DEBUG,
-    handlers=[
-        stream_handler,
-        file_handler
-    ],
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", )
 
 async def main():
 
