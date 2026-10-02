@@ -13,7 +13,7 @@ The concept is simple: **a user reports a problem → an admin takes the ticket 
 Built with **Python, aiogram, SQLAlchemy, and SQLite**.
 
 
-![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat&logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.17-3776AB?style=flat&logo=python&logoColor=white)
 ![aiogram](https://img.shields.io/badge/aiogram-3-2CA5E0?style=flat&logo=telegram&logoColor=white)
 ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2-red?style=flat&logo=sqlalchemy&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-3-003B57?style=flat&logo=sqlite&logoColor=white)

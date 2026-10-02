@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import Router, F
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
@@ -12,13 +14,14 @@ from States.RegistrationState import RegistrationStates
 from Utils.telegram_helpers import require_text
 
 router = Router()
-
+logger = logging.getLogger(__name__)
 
 @router.message(
     F.chat.type == "private",
     CommandStart())
 async def start_handler(message: Message, actor, state: FSMContext):
     if actor is not None:
+        logger.info(f"{actor} started the bot")
         await message.answer(
             f"Привет, {actor.full_name}! Ты уже зарегистрирован.",
             reply_markup=get_main_menu_keyboard(actor)
