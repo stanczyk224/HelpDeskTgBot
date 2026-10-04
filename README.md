@@ -90,6 +90,7 @@ HelpDeskTgBot/
 ├── Handlers/           # Telegram update handlers
 ├── Jobs/               # Background jobs
 ├── Keyboards/          # Telegram keyboards
+├── Logs/               # Logs
 ├── Middlewares/        # Telegram middlewares
 ├── Models/             # SQLAlchemy models
 ├── Repositories/       # Database access layer
@@ -100,6 +101,7 @@ HelpDeskTgBot/
 ├── db.py               # Database configuration
 ├── main.py             # Application entry point
 ├── requirements.txt    # Project dependencies
+├── logger.py           # Config of logger
 └── README.md
 ```
 ### Architecture

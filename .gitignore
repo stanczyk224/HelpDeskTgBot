@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 
 helpdesk.db
+helpdesk_backup.db
 
 # C extensions
 *.so

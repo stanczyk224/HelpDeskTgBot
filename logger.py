@@ -41,3 +41,8 @@ logging.basicConfig(
     ],
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
+
+sqlalchemy_logger = logging.getLogger("sqlalchemy.engine.Engine")
+sqlalchemy_logger.setLevel(logging.INFO)
+sqlalchemy_logger.propagate = False
+sqlalchemy_logger.addHandler(file_handler)
